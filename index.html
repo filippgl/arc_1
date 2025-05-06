@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Test</title>
+    <title>Коктейльный AR</title>
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <style>
@@ -11,14 +11,63 @@
             margin: 0;
             overflow: hidden;
         }
+        .debug-info {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            padding: 5px;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            z-index: 999;
+        }
     </style>
 </head>
 <body>
+    <div class="debug-info" id="debug">Ожидание маркера...</div>
+    
     <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false;">
-        <a-marker preset="hiro">
-            <a-box position="0 0.5 0" color="red"></a-box>
+        <!-- Сначала используем стандартный маркер Hiro для проверки -->
+        <a-marker preset="hiro" id="hiro-marker">
+            <a-video 
+                id="cocktail-video" 
+                src="assets/videos/sample.mp4" 
+                width="1.5" 
+                height="1.5" 
+                position="0 0 0" 
+                rotation="-90 0 0" 
+                play="false">
+            </a-video>
         </a-marker>
+        
         <a-entity camera></a-entity>
     </a-scene>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const marker = document.querySelector('#hiro-marker');
+            const debug = document.querySelector('#debug');
+            
+            marker.addEventListener('markerFound', function() {
+                debug.textContent = 'Маркер найден!';
+                debug.style.backgroundColor = 'rgba(0,255,0,0.5)';
+                
+                const video = document.querySelector('#cocktail-video');
+                if (video && video.components && video.components.material) {
+                    const videoEl = video.components.material.material.map.image;
+                    if (videoEl) {
+                        videoEl.muted = false;
+                        videoEl.play();
+                    }
+                }
+            });
+            
+            marker.addEventListener('markerLost', function() {
+                debug.textContent = 'Маркер потерян';
+                debug.style.backgroundColor = 'rgba(255,0,0,0.5)';
+            });
+        });
+    </script>
 </body>
 </html>
