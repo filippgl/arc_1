@@ -3,46 +3,24 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Коктейльный AR</title>
-    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
+    <title>Тест камеры AR</title>
+    <!-- Используем стандартную версию A-Frame и AR.js -->
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <style>
         body {
             margin: 0;
             overflow: hidden;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
         }
     </style>
 </head>
 <body>
-    <a-scene
-        vr-mode-ui="enabled: false;"
-        renderer="logarithmicDepthBuffer: true;"
-        embedded
-        arjs="sourceType: webcam; debugUIEnabled: false;">
-        
-        <a-nft
-            type="nft"
-            url="assets/markers/cocktail-marker"
-            smooth="true"
-            smoothCount="5"
-            smoothTolerance=".01"
-            smoothThreshold="5">
-            
-            <a-video
-                src="assets/videos/sample.mp4"
-                position="0 0 0"
-                rotation="-90 0 0"
-                width="1"
-                height="1"
-                play="true">
-            </a-video>
-        </a-nft>
-        
+    <!-- Самая простая AR-сцена для тестирования доступа к камере -->
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true;">
+        <!-- Простой маркер HIRO для тестирования (не требует создания своих маркеров) -->
+        <a-marker preset="hiro">
+            <a-box position="0 0.5 0" color="red"></a-box>
+        </a-marker>
         <a-entity camera></a-entity>
     </a-scene>
 </body>
