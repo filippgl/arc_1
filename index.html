@@ -19,11 +19,9 @@ html
             background: rgba(0,0,0,0.5);
             color: white;
             padding: 5px;
-            font-family: Arial, sans-serif;
             font-size: 12px;
             z-index: 999;
         }
-        /* Кнопка для активации аудио */
         .audio-btn {
             position: fixed;
             bottom: 20px;
@@ -42,38 +40,38 @@ html
     <button class="audio-btn" id="enableAudio">Включить звук</button>
     
     <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false;">
-        <!-- Стандартный маркер Hiro -->
+        <!-- Маркер Hiro (заглушка для вашего символа в нижнем правом углу) -->
         <a-marker preset="hiro" id="hiro-marker" emitevents="true">
-            <!-- Уменьшаем размер видео, чтобы оно соответствовало маркеру -->
-            <a-video 
-                id="cocktail-video" 
-                src="assets/videos/sample.mp4" 
-                width="1" 
-                height="0.75" 
-                position="0 0 0" 
-                rotation="-90 0 0"
-                loop="true"
-                autoplay="false"
-                muted="true">
-            </a-video>
+            <!-- Контейнер для правильного позиционирования -->
+            <a-entity position="0 0 0">
+                <!-- Видео, смещенное влево-вверх от маркера, чтобы покрыть всю грань -->
+                <a-video 
+                    id="cocktail-video" 
+                    src="assets/videos/sample.mp4" 
+                    width="4" 
+                    height="4" 
+                    position="-1.5 0 1.5" 
+                    rotation="-90 0 0"
+                    loop="true"
+                    autoplay="false"
+                    muted="true">
+                </a-video>
+            </a-entity>
         </a-marker>
         
         <a-entity camera></a-entity>
     </a-scene>
 
     <script>
-        // Флаг для отслеживания состояния видео
         let videoIsPlaying = false;
         let audioEnabled = false;
         
-        // Ожидаем полной загрузки документа
         window.addEventListener('DOMContentLoaded', function() {
             const marker = document.querySelector('#hiro-marker');
             const video = document.querySelector('#cocktail-video');
             const debug = document.querySelector('#debug');
             const audioBtn = document.querySelector('#enableAudio');
             
-            // Получаем элемент видео, когда он будет доступен
             function getVideoElement() {
                 if (video.components && video.components.material && 
                     video.components.material.material && 
@@ -83,14 +81,11 @@ html
                 return null;
             }
             
-            // Функция для запуска видео
             function playVideo() {
                 const videoEl = getVideoElement();
                 if (videoEl && !videoIsPlaying) {
                     videoEl.muted = !audioEnabled;
                     videoEl.currentTime = 0;
-                    
-                    // Воспроизводим видео с обработкой промиса
                     const playPromise = videoEl.play();
                     if (playPromise !== undefined) {
                         playPromise.then(() => {
@@ -103,7 +98,6 @@ html
                 }
             }
             
-            // Функция для паузы видео
             function pauseVideo() {
                 const videoEl = getVideoElement();
                 if (videoEl && videoIsPlaying) {
@@ -113,36 +107,22 @@ html
                 }
             }
             
-            // Обработчик кнопки для включения звука
             audioBtn.addEventListener('click', function() {
                 audioEnabled = true;
                 this.style.display = 'none';
-                
                 const videoEl = getVideoElement();
-                if (videoEl) {
-                    videoEl.muted = false;
-                }
-                
+                if (videoEl) videoEl.muted = false;
                 debug.textContent = 'Звук включен';
             });
             
-            // Обработчик события обнаружения маркера
             marker.addEventListener('markerFound', function() {
                 debug.textContent = 'Маркер найден!';
-                // Запускаем видео автоматически
                 playVideo();
             });
             
-            // Обработчик события потери маркера
             marker.addEventListener('markerLost', function() {
                 debug.textContent = 'Маркер потерян';
-                // Ставим видео на паузу
                 pauseVideo();
-            });
-            
-            // Инициализация компонентов после загрузки сцены
-            document.querySelector('a-scene').addEventListener('loaded', function() {
-                debug.textContent = 'Сцена загружена, наведите на маркер';
             });
         });
     </script>
