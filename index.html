@@ -28,44 +28,97 @@
     <div class="debug-info" id="debug">Ожидание маркера...</div>
     
     <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false;">
-        <!-- Сначала используем стандартный маркер Hiro для проверки -->
+        <!-- Стандартный маркер Hiro -->
         <a-marker preset="hiro" id="hiro-marker">
-            <a-video 
-                id="cocktail-video" 
-                src="assets/videos/sample.mp4" 
-                width="1.5" 
-                height="1.5" 
-                position="0 0 0" 
-                rotation="-90 0 0" 
-                play="false">
-            </a-video>
+            <a-entity id="video-container" position="0 0 0" rotation="-90 0 0">
+                <!-- Видео внутри контейнера для лучшего управления -->
+                <a-video 
+                    id="cocktail-video" 
+                    src="assets/videos/sample.mp4" 
+                    width="1.5" 
+                    height="1.5" 
+                    position="0 0 0" 
+                    autoplay="false"
+                    visible="false">
+                </a-video>
+            </a-entity>
         </a-marker>
         
         <a-entity camera></a-entity>
     </a-scene>
 
     <script>
+        // Глобальные переменные для отслеживания состояния
+        let markerVisible = false;
+        let videoElement = null;
+        let videoPlaying = false;
+        
+        // Инициализация после загрузки DOM
         document.addEventListener("DOMContentLoaded", function() {
             const marker = document.querySelector('#hiro-marker');
+            const video = document.querySelector('#cocktail-video');
             const debug = document.querySelector('#debug');
             
+            // Инициализация видео только после первого взаимодействия пользователя
+            document.body.addEventListener('click', function() {
+                if (!videoElement && video.components && video.components.material) {
+                    videoElement = video.components.material.material.map.image;
+                    if (videoElement) {
+                        // Установка начальных параметров
+                        videoElement.muted = true;
+                        videoElement.pause();
+                        // Предзагрузка видео
+                        videoElement.load();
+                        debug.textContent += " | Видео готово";
+                    }
+                }
+            }, { once: true });
+            
+            // Обработка обнаружения маркера
             marker.addEventListener('markerFound', function() {
                 debug.textContent = 'Маркер найден!';
                 debug.style.backgroundColor = 'rgba(0,255,0,0.5)';
+                markerVisible = true;
                 
-                const video = document.querySelector('#cocktail-video');
-                if (video && video.components && video.components.material) {
-                    const videoEl = video.components.material.material.map.image;
-                    if (videoEl) {
-                        videoEl.muted = false;
-                        videoEl.play();
+                // Сделать видео видимым
+                video.setAttribute('visible', 'true');
+                
+                // Проверить, что видеоэлемент доступен
+                if (!videoElement && video.components && video.components.material) {
+                    videoElement = video.components.material.material.map.image;
+                }
+                
+                // Воспроизвести видео, если оно не воспроизводится
+                if (videoElement && !videoPlaying) {
+                    videoElement.muted = false;
+                    videoElement.currentTime = 0;
+                    const playPromise = videoElement.play();
+                    
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            videoPlaying = true;
+                            debug.textContent += " | Видео запущено";
+                        }).catch(error => {
+                            debug.textContent += " | Ошибка: " + error;
+                        });
                     }
                 }
             });
             
+            // Обработка потери маркера
             marker.addEventListener('markerLost', function() {
                 debug.textContent = 'Маркер потерян';
                 debug.style.backgroundColor = 'rgba(255,0,0,0.5)';
+                markerVisible = false;
+                
+                // Скрыть видео
+                video.setAttribute('visible', 'false');
+                
+                // Остановить воспроизведение
+                if (videoElement && videoPlaying) {
+                    videoElement.pause();
+                    videoPlaying = false;
+                }
             });
         });
     </script>
