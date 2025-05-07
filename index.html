@@ -1,3 +1,4 @@
+html
 <!DOCTYPE html>
 <html>
 <head>
@@ -22,103 +23,126 @@
             font-size: 12px;
             z-index: 999;
         }
+        /* Кнопка для активации аудио */
+        .audio-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 999;
+        }
     </style>
 </head>
 <body>
     <div class="debug-info" id="debug">Ожидание маркера...</div>
+    <button class="audio-btn" id="enableAudio">Включить звук</button>
     
     <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false;">
         <!-- Стандартный маркер Hiro -->
-        <a-marker preset="hiro" id="hiro-marker">
-            <a-entity id="video-container" position="0 0 0" rotation="-90 0 0">
-                <!-- Видео внутри контейнера для лучшего управления -->
-                <a-video 
-                    id="cocktail-video" 
-                    src="assets/videos/sample.mp4" 
-                    width="1.5" 
-                    height="1.5" 
-                    position="0 0 0" 
-                    autoplay="false"
-                    visible="false">
-                </a-video>
-            </a-entity>
+        <a-marker preset="hiro" id="hiro-marker" emitevents="true">
+            <!-- Уменьшаем размер видео, чтобы оно соответствовало маркеру -->
+            <a-video 
+                id="cocktail-video" 
+                src="assets/videos/sample.mp4" 
+                width="1" 
+                height="0.75" 
+                position="0 0 0" 
+                rotation="-90 0 0"
+                loop="true"
+                autoplay="false"
+                muted="true">
+            </a-video>
         </a-marker>
         
         <a-entity camera></a-entity>
     </a-scene>
 
     <script>
-        // Глобальные переменные для отслеживания состояния
-        let markerVisible = false;
-        let videoElement = null;
-        let videoPlaying = false;
+        // Флаг для отслеживания состояния видео
+        let videoIsPlaying = false;
+        let audioEnabled = false;
         
-        // Инициализация после загрузки DOM
-        document.addEventListener("DOMContentLoaded", function() {
+        // Ожидаем полной загрузки документа
+        window.addEventListener('DOMContentLoaded', function() {
             const marker = document.querySelector('#hiro-marker');
             const video = document.querySelector('#cocktail-video');
             const debug = document.querySelector('#debug');
+            const audioBtn = document.querySelector('#enableAudio');
             
-            // Инициализация видео только после первого взаимодействия пользователя
-            document.body.addEventListener('click', function() {
-                if (!videoElement && video.components && video.components.material) {
-                    videoElement = video.components.material.material.map.image;
-                    if (videoElement) {
-                        // Установка начальных параметров
-                        videoElement.muted = true;
-                        videoElement.pause();
-                        // Предзагрузка видео
-                        videoElement.load();
-                        debug.textContent += " | Видео готово";
-                    }
+            // Получаем элемент видео, когда он будет доступен
+            function getVideoElement() {
+                if (video.components && video.components.material && 
+                    video.components.material.material && 
+                    video.components.material.material.map) {
+                    return video.components.material.material.map.image;
                 }
-            }, { once: true });
+                return null;
+            }
             
-            // Обработка обнаружения маркера
-            marker.addEventListener('markerFound', function() {
-                debug.textContent = 'Маркер найден!';
-                debug.style.backgroundColor = 'rgba(0,255,0,0.5)';
-                markerVisible = true;
-                
-                // Сделать видео видимым
-                video.setAttribute('visible', 'true');
-                
-                // Проверить, что видеоэлемент доступен
-                if (!videoElement && video.components && video.components.material) {
-                    videoElement = video.components.material.material.map.image;
-                }
-                
-                // Воспроизвести видео, если оно не воспроизводится
-                if (videoElement && !videoPlaying) {
-                    videoElement.muted = false;
-                    videoElement.currentTime = 0;
-                    const playPromise = videoElement.play();
+            // Функция для запуска видео
+            function playVideo() {
+                const videoEl = getVideoElement();
+                if (videoEl && !videoIsPlaying) {
+                    videoEl.muted = !audioEnabled;
+                    videoEl.currentTime = 0;
                     
+                    // Воспроизводим видео с обработкой промиса
+                    const playPromise = videoEl.play();
                     if (playPromise !== undefined) {
                         playPromise.then(() => {
-                            videoPlaying = true;
-                            debug.textContent += " | Видео запущено";
+                            videoIsPlaying = true;
+                            debug.textContent = 'Видео воспроизводится';
                         }).catch(error => {
-                            debug.textContent += " | Ошибка: " + error;
+                            debug.textContent = 'Ошибка: ' + error;
                         });
                     }
                 }
+            }
+            
+            // Функция для паузы видео
+            function pauseVideo() {
+                const videoEl = getVideoElement();
+                if (videoEl && videoIsPlaying) {
+                    videoEl.pause();
+                    videoIsPlaying = false;
+                    debug.textContent = 'Видео на паузе';
+                }
+            }
+            
+            // Обработчик кнопки для включения звука
+            audioBtn.addEventListener('click', function() {
+                audioEnabled = true;
+                this.style.display = 'none';
+                
+                const videoEl = getVideoElement();
+                if (videoEl) {
+                    videoEl.muted = false;
+                }
+                
+                debug.textContent = 'Звук включен';
             });
             
-            // Обработка потери маркера
+            // Обработчик события обнаружения маркера
+            marker.addEventListener('markerFound', function() {
+                debug.textContent = 'Маркер найден!';
+                // Запускаем видео автоматически
+                playVideo();
+            });
+            
+            // Обработчик события потери маркера
             marker.addEventListener('markerLost', function() {
                 debug.textContent = 'Маркер потерян';
-                debug.style.backgroundColor = 'rgba(255,0,0,0.5)';
-                markerVisible = false;
-                
-                // Скрыть видео
-                video.setAttribute('visible', 'false');
-                
-                // Остановить воспроизведение
-                if (videoElement && videoPlaying) {
-                    videoElement.pause();
-                    videoPlaying = false;
-                }
+                // Ставим видео на паузу
+                pauseVideo();
+            });
+            
+            // Инициализация компонентов после загрузки сцены
+            document.querySelector('a-scene').addEventListener('loaded', function() {
+                debug.textContent = 'Сцена загружена, наведите на маркер';
             });
         });
     </script>
