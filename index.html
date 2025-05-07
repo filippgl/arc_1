@@ -37,111 +37,172 @@
 <body>
     <div class="debug-info" id="debug">Ожидание маркера...</div>
     <button class="audio-btn" id="enableAudio">Включить звук</button>
-
+    
     <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false;">
         <!-- Стандартный маркер Hiro -->
         <a-marker preset="hiro" id="hiro-marker" emitevents="true">
-            <!-- Видео с правильным соотношением сторон 16:9 -->
+            <!-- Предварительная загрузка видео с атрибутом preload -->
+            <a-assets>
+                <video id="video-source" src="assets/videos/sample.mp4" preload="auto" loop muted></video>
+            </a-assets>
+            
+            <!-- Видео с соотношением сторон 1:1 -->
             <a-video 
                 id="cocktail-video" 
-                src="assets/videos/sample.mp4" 
-                width="0.9" 
-                height="0.9" 
+                src="#video-source"
                 width="1" 
                 height="1" 
                 position="0 0 0" 
                 rotation="-90 0 0"
                 loop="true"
-                autoplay="false"
                 muted="true">
             </a-video>
         </a-marker>
-
+        
         <a-entity camera></a-entity>
     </a-scene>
 
     <script>
-        // Флаг для отслеживания состояния видео
+        // Флаги для отслеживания состояния
         let videoIsPlaying = false;
         let audioEnabled = false;
-
+        let videoElement = null;
+        let markerDetected = false;
+        let playAttempts = 0;
+        
         // Ожидаем полной загрузки документа
         window.addEventListener('DOMContentLoaded', function() {
             const marker = document.querySelector('#hiro-marker');
             const video = document.querySelector('#cocktail-video');
+            const videoSource = document.querySelector('#video-source');
             const debug = document.querySelector('#debug');
             const audioBtn = document.querySelector('#enableAudio');
-
+            
+            // Предварительная подготовка видео
+            videoSource.load();
+            
             // Получаем элемент видео, когда он будет доступен
             function getVideoElement() {
-                if (video.components && video.components.material && 
+                // Сначала пробуем получить из исходного элемента
+                if (videoSource) {
+                    return videoSource;
+                }
+                
+                // Затем пробуем получить из компонента A-Frame
+                if (video && video.components && video.components.material && 
                     video.components.material.material && 
                     video.components.material.material.map) {
                     return video.components.material.material.map.image;
                 }
+                
                 return null;
             }
-
-            // Функция для запуска видео
+            
+            // Функция для запуска видео с повторными попытками
             function playVideo() {
-                const videoEl = getVideoElement();
-                if (videoEl && !videoIsPlaying) {
-                    videoEl.muted = !audioEnabled;
-                    videoEl.currentTime = 0;
-
+                videoElement = getVideoElement();
+                
+                if (videoElement && !videoIsPlaying) {
+                    videoElement.muted = !audioEnabled;
+                    
+                    // Сбрасываем видео, если оно уже воспроизводилось ранее
+                    if (playAttempts > 0) {
+                        videoElement.currentTime = 0;
+                    }
+                    
+                    debug.textContent = 'Попытка воспроизведения...';
+                    
+                    // Увеличиваем счетчик попыток
+                    playAttempts++;
+                    
                     // Воспроизводим видео с обработкой промиса
-                    const playPromise = videoEl.play();
+                    const playPromise = videoElement.play();
+                    
                     if (playPromise !== undefined) {
                         playPromise.then(() => {
                             videoIsPlaying = true;
-                            debug.textContent = 'Видео воспроизводится';
+                            debug.textContent = 'Видео воспроизводится (попытка ' + playAttempts + ')';
                         }).catch(error => {
                             debug.textContent = 'Ошибка: ' + error;
+                            
+                            // Пробуем еще раз через небольшую задержку
+                            if (markerDetected && playAttempts < 3) {
+                                setTimeout(playVideo, 300);
+                            }
                         });
+                    }
+                } else if (!videoElement) {
+                    debug.textContent = 'Видео еще не готово';
+                    
+                    // Пробуем снова получить элемент видео через задержку
+                    if (markerDetected && playAttempts < 3) {
+                        setTimeout(playVideo, 300);
                     }
                 }
             }
-
+            
             // Функция для паузы видео
             function pauseVideo() {
-                const videoEl = getVideoElement();
-                if (videoEl && videoIsPlaying) {
-                    videoEl.pause();
+                if (videoElement && videoIsPlaying) {
+                    videoElement.pause();
                     videoIsPlaying = false;
                     debug.textContent = 'Видео на паузе';
                 }
             }
-
+            
             // Обработчик кнопки для включения звука
             audioBtn.addEventListener('click', function() {
                 audioEnabled = true;
                 this.style.display = 'none';
-
-                const videoEl = getVideoElement();
-                if (videoEl) {
-                    videoEl.muted = false;
+                
+                if (videoElement) {
+                    videoElement.muted = false;
+                    debug.textContent = 'Звук включен';
                 }
-
-                debug.textContent = 'Звук включен';
             });
-
+            
+            // Добавляем обработчик клика по странице для инициализации
+            document.body.addEventListener('click', function() {
+                if (!videoElement) {
+                    videoElement = getVideoElement();
+                    if (videoElement) {
+                        videoElement.load();
+                        debug.textContent = 'Видео инициализировано';
+                    }
+                }
+            });
+            
             // Обработчик события обнаружения маркера
             marker.addEventListener('markerFound', function() {
                 debug.textContent = 'Маркер найден!';
+                markerDetected = true;
+                
+                // Сбрасываем счетчик попыток при новом обнаружении
+                if (!videoIsPlaying) {
+                    playAttempts = 0;
+                }
+                
                 // Запускаем видео автоматически
                 playVideo();
             });
-
+            
             // Обработчик события потери маркера
             marker.addEventListener('markerLost', function() {
                 debug.textContent = 'Маркер потерян';
+                markerDetected = false;
                 // Ставим видео на паузу
                 pauseVideo();
             });
-
+            
             // Инициализация компонентов после загрузки сцены
             document.querySelector('a-scene').addEventListener('loaded', function() {
                 debug.textContent = 'Сцена загружена, наведите на маркер';
+                
+                // Предварительная инициализация видео
+                videoElement = getVideoElement();
+                if (videoElement) {
+                    videoElement.load();
+                }
             });
         });
     </script>
